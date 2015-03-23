@@ -1,0 +1,104 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>duangPage</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<meta content="telephone=no" name="format-detection" />
+<style>
+html{height: 100%;}
+body{color:#333;margin: 0;-webkit-user-select:none;-webkit-touch-callout:none;height: 100%;background: #000000;}
+.wrapper{display:block;width: 100%;max-width:640px;margin: 0 auto;height: 100%;}
+#wrap{position:relative;height:100%;}
+img{max-width: 100%;}
+#pages{position:absolute;top:0;left:0;width:100%;height:100%;text-align:center;overflow:hidden;}
+.page{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-color:#999;}
+.page0{background:white;}
+.page1{background:red;}
+.page2{background:yellow;}
+.page3{background:green;}
+h1{text-align:center;font-size:30px;}
+#loading{background-image: url(img/load.gif); width:100px;height: 100px;background-size:cover;position:absolute;top:50%;left:50%;transform: translate(-50%,-50%);z-index:9999;}
+</style>
+</head>
+<body>
+<div id="wrap" class="wrapper">
+    <div id="pages">
+        <div class="page page0">
+            <h1>图片</h1>
+            <img data-src="http://img.sj33.cn/uploads/allimg/201402/7-140224140Kb49.png" alt="">
+        </div>
+        <div class="page page1" data-title="更换标题">
+            <h1>文本</h1>
+            <div class="box">
+                <p>呵呵呵哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈</p>
+                <img data-src="https://avatars1.githubusercontent.com/u/2008850?v=3&s=460" alt="">
+            </div>
+        </div>
+        <div class="page page2" data-title="苹果婊">
+            <h1>哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈</h1>
+        </div>
+        <div class="page" data-src="img/img2.jpg"></div>
+        <div class="page" data-src="img/img3.jpg"></div>
+        <div class="page page3"><h1>page3</h1></div>
+    </div>
+</div>
+<div id="loading"></div>
+<script type="text/javascript" src="src/zepto.min.js"></script>
+<script type="text/javascript" src="src/duangPage.js"></script>
+<script>
+Zepto(function($) {
+    var duang = new duangPage('pages', {
+        duration: 800,
+        start: 0,
+        direction: 1,
+        loop: false,
+        ease: 'ease',
+        hash: true,
+        currentClass: 'cur',
+        transition: 'slide',
+        preload:'near' //'current'  'near'  'all'  
+    });
+
+    var $loading = $('#loading');
+
+    duang.on('allImagesDone', function(i) {
+        $loading.hide();
+        $('#arrowB').show();
+        console.log('allImagesDone');
+    })
+
+    duang.on('currentImagesDone', function(i) {
+        $loading.hide();
+        console.log('currentImagesDone');
+    })
+
+    duang.on('nearImagesDone', function(i) {
+        console.log('nearImagesDone');
+    })
+
+
+    duang.on('before', function(i) {
+        console.log('before');
+    })
+
+    duang.on('update', function(i) {
+        //console.log('update');
+    })
+
+    duang.on('after', function(i) {
+        var $p = $('.page').eq(i);
+        if($p.data('src')||$p.children().data('src'))$loading.show();
+        console.log('after');
+    })
+
+
+})
+
+
+</script>
+</body>
+</html>
