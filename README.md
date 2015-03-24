@@ -6,10 +6,12 @@
 ```
 <body>
 <div id="pages">
-    <div class="page"></div>
-    <div class="page" data-title="更换标题"></div>
+    <div class="page">
+    	<h1>标题</h1>
+    	<img data-src="img.jpg" alt="">
+    </div>
     <div class="page" data-title="苹果婊"></div>
-    <div class="page" data-src="img/img2.jpg"></div>
+    <div class="page" data-src="img.jpg"></div>
     ...
 </div>
 </body>
@@ -87,7 +89,7 @@ duang.on(event,callback);
 另：在dom元素上加上```data-title```可以在hash改变后更新页面title
 
 
-## 参考
+## 相关
 - [pageSwitch.js](https://github.com/qiqiboy/pageSwitch)
 - [zepto.fullpage](https://github.com/yanhaijing/zepto.fullpage)
 - [parallax.js](https://github.com/hahnzhu/parallax.js)
