@@ -1,5 +1,5 @@
 # duangPage.js
-移动端单屏展示库，支持多种动画、页面路由等功能，参考了 [pageSwitch.js](https://github.com/qiqiboy/pageSwitch) 移除对桌面老浏览器的支持，增加了图片预加载和路由功能。
+移动端单屏展示库，支持多种动画、页面路由等功能，站在 [pageSwitch.js](https://github.com/qiqiboy/pageSwitch) 的肩膀上， 移除对桌面老浏览器的支持，增加了图片预加载和路由功能。
 
 ## 简单的调用
 #### HTML
@@ -64,7 +64,6 @@ duang.destroy();               //销毁
 duang.on(event,callback);
 /* 事件绑定
  * event可选值:
- * 
  * before 页面切换前
  * after 页面切换后
  * update 页面切换中
