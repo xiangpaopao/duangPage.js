@@ -72,9 +72,9 @@ duang.on(event,callback);
  * dragStart 开始拖拽
  * dragMove 拖拽中
  * dragEnd 结束拖拽
- * allImagesDone  所有图片加载完成（针对preload:near）
+ * allImagesDone  所有图片加载完成（针对preload:all）
  * currentImagesDone  当前页面图片加载完成（针对preload:current|near）
- * nearImagesDone  所有图片加载完成（仅仅针对preload:all）
+ * nearImagesDone  前后页图片加载完成（仅仅针对preload:near）
  */
 
 ```
