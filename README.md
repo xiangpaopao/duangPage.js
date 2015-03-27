@@ -1,5 +1,5 @@
 # duangPage.js
-移动端单屏展示库，支持多种动画、页面路由等功能，站在 [pageSwitch.js](https://github.com/qiqiboy/pageSwitch) 的肩膀上， 移除对桌面老浏览器的支持，增加了图片预加载和路由功能。
+移动端单屏展示库，支持多种动画、页面路由等功能，依赖 Zepto/jQuery 站在 [pageSwitch.js](https://github.com/qiqiboy/pageSwitch) 的肩膀上， 移除对桌面老浏览器的支持，增加了图片预加载和路由功能。
 
 ## 简单的调用
 #### HTML
