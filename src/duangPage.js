@@ -42,12 +42,8 @@
         cssTest=function(name){
             var prop=camelCase(name),
                 _prop=camelCase(cssVendor+prop);
-                console.log((prop in divstyle) && prop || (_prop in divstyle) && _prop || '')
             return (prop in divstyle) && prop || (_prop in divstyle) && _prop || '';
         },
-        // isFunction=function(func){
-        //     return $.type(func)=='function';
-        // },
         opacity=cssTest('opacity'),
         transform=cssTest('transform'),
         perspective=cssTest('perspective'),
@@ -261,7 +257,6 @@
         },
         on:function(ev,callback){
             var self=this;
-            //console.log(ev)
             if($.type(ev)=='object'){
                 each(ev,function(ev,callback){
                     self.on(ev,callback);
@@ -472,7 +467,8 @@
                                 }else if ((this.prevIndex == index) || (index<0) || (index > this.length - 1)) {
                                     this.slide(index);
                                 }else{
-                                    this.setHash(this.prevHash + index,this.pages[this.current].dataset.title);
+                                    var _Max = (this.current > index) ? -1 : 1;
+                                    this.setHash(this.prevHash + index, this.pages[this.current + _Max].dataset.title);
                                 }
                             }
                         }
@@ -492,7 +488,6 @@
             var self = this;
             function load($elems,fireEvent){
                 var i = 0;
-                console.log($elems.length)
                 if ($elems.length==0){
                     self.fire(fireEvent)
                     return;
