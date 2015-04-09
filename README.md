@@ -1,15 +1,17 @@
 # duangPage.js
-移动端单屏展示库，支持多种动画、页面路由等功能，参考了 [pageSwitch.js](https://github.com/qiqiboy/pageSwitch) 移除对桌面老浏览器的支持，增加了图片预加载和路由功能。
+移动端单屏展示库，支持多种动画、页面路由等功能，依赖 Zepto/jQuery 站在 [pageSwitch.js](https://github.com/qiqiboy/pageSwitch) 的肩膀上， 移除对桌面老浏览器的支持，增加了图片预加载和路由功能。
 
 ## 简单的调用
 #### HTML
 ```
 <body>
 <div id="pages">
-    <div class="page"></div>
-    <div class="page" data-title="更换标题"></div>
+    <div class="page">
+    	<h1>标题</h1>
+    	<img data-src="img.jpg" alt="">
+    </div>
     <div class="page" data-title="苹果婊"></div>
-    <div class="page" data-src="img/img2.jpg"></div>
+    <div class="page" data-src="img.jpg"></div>
     ...
 </div>
 </body>
@@ -64,16 +66,15 @@ duang.destroy();               //销毁
 duang.on(event,callback);
 /* 事件绑定
  * event可选值:
- * 
  * before 页面切换前
  * after 页面切换后
  * update 页面切换中
  * dragStart 开始拖拽
  * dragMove 拖拽中
  * dragEnd 结束拖拽
- * allImagesDone  所有图片加载完成（针对preload:near）
+ * allImagesDone  所有图片加载完成（针对preload:all）
  * currentImagesDone  当前页面图片加载完成（针对preload:current|near）
- * nearImagesDone  所有图片加载完成（仅仅针对preload:all）
+ * nearImagesDone  前后页图片加载完成（仅仅针对preload:near）
  */
 
 ```
@@ -88,7 +89,7 @@ duang.on(event,callback);
 另：在dom元素上加上```data-title```可以在hash改变后更新页面title
 
 
-## 参考
+## 相关
 - [pageSwitch.js](https://github.com/qiqiboy/pageSwitch)
 - [zepto.fullpage](https://github.com/yanhaijing/zepto.fullpage)
 - [parallax.js](https://github.com/hahnzhu/parallax.js)
