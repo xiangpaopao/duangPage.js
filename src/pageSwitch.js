@@ -1,22 +1,30 @@
 /*
- * duangPage.js 1.1.0
- * @author xiangpaopao
- * @github https://github.com/xiangpaopao/duangPage.js
- * 参考了 https://github.com/qiqiboy/pageSwitch
+ * pageSwitch
+ * @author qiqiboy
+ * @github https://github.com/qiqiboy/pageSwitch
  */
-;(function(ROOT, struct, undefined){
+;
+(function(ROOT, struct, undefined){
     "use strict";
     
+    var VERSION='2.2.1';
     var lastTime=0,
         nextFrame=ROOT.requestAnimationFrame            ||
                 ROOT.webkitRequestAnimationFrame        ||
                 ROOT.mozRequestAnimationFrame           ||
-                ROOT.msRequestAnimationFrame,
+                ROOT.msRequestAnimationFrame            ||
+                function(callback){
+                    var currTime=+new Date,
+                        delay=Math.max(1000/60,1000/60-(currTime-lastTime));
+                    lastTime=currTime+delay;
+                    return setTimeout(callback,delay);
+                },
         cancelFrame=ROOT.cancelAnimationFrame           ||
                 ROOT.webkitCancelAnimationFrame         ||
                 ROOT.webkitCancelRequestAnimationFrame  ||
                 ROOT.mozCancelRequestAnimationFrame     ||
-                ROOT.msCancelRequestAnimationFrame,
+                ROOT.msCancelRequestAnimationFrame      ||
+                clearTimeout,
         isTouch=("createTouch" in document) || ('ontouchstart' in window),
         EVENT='PointerEvent' in ROOT ?
             "pointerdown pointermove pointerup pointercancel" :
@@ -31,7 +39,7 @@
             });
         },
         cssVendor=function(){
-            var tests="-webkit- -moz- -o-  -ms-".split(" "),
+            var tests="-webkit- -moz- -o- -ms-".split(" "),
                 prop;
             while(prop=tests.shift()){
                 if(camelCase(prop+'transform') in divstyle){
@@ -151,7 +159,170 @@
             }else TRANSITION['slideCover'+name].apply(this,arguments);
         }
 
+        TRANSITION['flip'+name]=function(cpage,cp,tpage,tp){
+            var prop=name||['X','Y'][1-this.direction],
+                fix=prop=='X'?cp>0?-1:1:cp>0?1:-1;
+            if(perspective){
+                cpage.style[backfaceVisibility]='hidden';
+                cpage.style[transform]='perspective(1000px) rotate'+prop+'('+Math.abs(cp)*180*fix+'deg)'+fire3D;
+                if(tpage){
+                    tpage.style[backfaceVisibility]='hidden';
+                    tpage.style[transform]='perspective(1000px) rotate'+prop+'('+Math.abs(tp)*180*-fix+'deg)'+fire3D;
+                }
+            }else TRANSITION['scroll'+name].apply(this,arguments);
+        }
 
+        TRANSITION['flip3d'+name]=function(){
+            var inited;
+            return function(cpage,cp,tpage,tp){
+                var prop=name||['X','Y'][1-this.direction],
+                    fe=prop=='X'?-1:1,
+                    fix=fe<0?cp<0?-1:1:cp<0?1:-1,
+                    zh=cpage['offset'+(prop=='X'?'Height':'Width')]/2;
+                if(preserve3d){
+                    if(!inited){
+                        inited=true;
+                        cpage.parentNode.parentNode.style[perspective]='1000px';
+                        cpage.parentNode.style[transformStyle]='preserve-3d';
+                    }
+                    cpage.parentNode.style[transform]='translateZ(-'+zh+'px) rotate'+prop+'('+cp*90*fe+'deg)';
+                    cpage.style[transform]='rotate'+prop+'(0) translateZ('+zh+'px)';
+                    if(tpage){
+                        tpage.style[transform]='rotate'+prop+'('+(fix*90)+'deg) translateZ('+zh+'px)';
+                    }
+                }else TRANSITION['scroll'+name].apply(this,arguments);
+            }
+        }();
+
+        TRANSITION['zoom'+name]=function(cpage,cp,tpage,tp){
+            var prop=name;
+            if(transform){
+                if(Math.abs(cp)<.5){
+                    cpage.style[transform]='scale'+prop+'('+(1-Math.abs(cp)*2)+')'+fire3D;
+                    cpage.style.zIndex=1;
+                    if(tpage){
+                        tpage.style[transform]='scale'+prop+'(0)'+fire3D;
+                        tpage.style.zIndex=0;
+                    }
+                }else{
+                    cpage.style.zIndex=0;
+                    if(tpage){
+                        tpage.style[transform]='scale'+prop+'('+(Math.abs(cp)-.5)*2+')'+fire3D;
+                        tpage.style.zIndex=1;
+                    }
+                }
+            }else TRANSITION['scroll'+name].apply(this,arguments);
+        }
+
+        TRANSITION['bomb'+name]=function(cpage,cp,tpage,tp){
+            var zIndex=Number(cp<0);
+            if(transform){
+                cpage.style[transform]='scale'+name+'('+(2-Math.abs(tp))+')'+fire3D;
+                cpage.style.zIndex=zIndex;
+                if(tpage){
+                    tpage.style[transform]='scale'+name+'('+(2-Math.abs(cp))+')'+fire3D;
+                    tpage.style.zIndex=1-zIndex;
+                }
+                TRANSITION.fade.apply(this,arguments);
+            }else TRANSITION['scroll'+name].apply(this,arguments);
+        }
+
+        TRANSITION['skew'+name]=function(cpage,cp,tpage,tp){
+            var prop=name,
+                zIndex=Number(Math.abs(cp)<.5);
+            if(transform){
+                cpage.style[transform]='skew'+prop+'('+cp*180+'deg)'+fire3D;
+                cpage.style.zIndex=zIndex;
+                if(tpage){
+                    tpage.style[transform]='skew'+prop+'('+tp*180+'deg)'+fire3D;
+                    tpage.style.zIndex=1-zIndex;
+                }
+            }else TRANSITION['scroll'+name].apply(this,arguments);
+        }
+
+        each(" Reverse In Out".split(" "),function(type){
+            TRANSITION['scrollCover'+type+name]=function(cpage,cp,tpage,tp){
+                var prop=name||['X','Y'][this.direction],
+                    zIndex=Number(type=='In'||!type&&cp<0||type=='Reverse'&&cp>0),
+                    cr=100,tr=100;
+                zIndex?cr=20:tr=20;
+                transform?cpage.style[transform]='translate'+prop+'('+cp*cr+'%)'+fire3D:cpage.style[XY[prop]]=cp*100+'%';
+                cpage.style.zIndex=1-zIndex;
+                if(tpage){
+                    transform?tpage.style[transform]='translate'+prop+'('+tp*tr+'%)'+fire3D:tpage.style[XY[prop]]=tp*100+'%';
+                    tpage.style.zIndex=zIndex;
+                }
+            }
+            
+            TRANSITION['slideCover'+type+name]=function(cpage,cp,tpage,tp){
+                var prop=name||['X','Y'][this.direction],
+                    zIndex=Number(type=='In'||!type&&cp<0||type=='Reverse'&&cp>0);
+                zIndex?cp=0:tp=0;
+                transform?cpage.style[transform]='translate'+prop+'('+cp*100+'%)'+fire3D:cpage.style[XY[prop]]=cp*100+'%';
+                cpage.style.zIndex=1-zIndex;
+                if(tpage){
+                    transform?tpage.style[transform]='translate'+prop+'('+tp*100+'%)'+fire3D:tpage.style[XY[prop]]=tp*100+'%';
+                    tpage.style.zIndex=zIndex;
+                }
+            }
+
+            TRANSITION['flipCover'+type+name]=function(cpage,cp,tpage,tp){
+                var prop=name||['X','Y'][1-this.direction],
+                    zIndex=Number(type=='In'||!type&&cp<0||type=='Reverse'&&cp>0);
+                if(perspective){
+                    zIndex?cp=0:tp=0;
+                    cpage.style[transform]='perspective(1000px) rotate'+prop+'('+cp*-90+'deg)'+fire3D;
+                    cpage.style.zIndex=1-zIndex;
+                    if(tpage){
+                        tpage.style[transform]='perspective(1000px) rotate'+prop+'('+tp*-90+'deg)'+fire3D
+                        tpage.style.zIndex=zIndex;
+                    }
+                }else TRANSITION['scroll'+name].apply(this,arguments);
+            }
+
+            TRANSITION['skewCover'+type+name]=function(cpage,cp,tpage,tp){
+                var prop=name,
+                    zIndex=Number(type=='In'||!type&&cp<0||type=='Reverse'&&cp>0);
+                if(transform){
+                    zIndex?cp=0:tp=0;
+                    cpage.style[transform]='skew'+prop+'('+cp*90+'deg)'+fire3D;
+                    cpage.style.zIndex=1-zIndex;
+                    if(tpage){
+                        tpage.style[transform]='skew'+prop+'('+tp*90+'deg)'+fire3D;
+                        tpage.style.zIndex=zIndex;
+                    }
+                }else TRANSITION['scroll'+name].apply(this,arguments);
+            }
+
+            TRANSITION['zoomCover'+type+name]=function(cpage,cp,tpage,tp){
+                var prop=name,
+                    zIndex=Number(type=='In'||!type&&cp<0||type=='Reverse'&&cp>0);
+                if(transform){
+                    zIndex?cp=0:tp=0;
+                    cpage.style[transform]='scale'+prop+'('+(1-Math.abs(cp))+')'+fire3D;
+                    cpage.style.zIndex=1-zIndex;
+                    if(tpage){
+                        tpage.style[transform]='scale'+prop+'('+(1-Math.abs(tp))+')'+fire3D;
+                        tpage.style.zIndex=zIndex;
+                    }
+                }else TRANSITION['scroll'+name].apply(this,arguments);
+            }
+
+            TRANSITION['bombCover'+type+name]=function(cpage,cp,tpage,tp){
+                var prop=name,
+                    zIndex=Number(type=='In'||!type&&cp<0||type=='Reverse'&&cp>0);
+                if(transform){
+                    zIndex?tp=1:cp=1;
+                    cpage.style[transform]='scale'+prop+'('+(2-Math.abs(tp))+')'+fire3D;
+                    cpage.style.zIndex=1-zIndex;
+                    if(tpage){
+                        tpage.style[transform]='scale'+prop+'('+(2-Math.abs(cp))+')'+fire3D;
+                        tpage.style.zIndex=zIndex;
+                    }
+                    TRANSITION.fade.apply(this,arguments);
+                }else TRANSITION['scroll'+name].apply(this,arguments);
+            }
+        });
     });
 
     function type(obj){
@@ -274,6 +445,7 @@
     }
     
     struct.prototype={
+        version:VERSION,
         constructor:struct,
         latestTime:0,
         init:function(config){
@@ -285,27 +457,19 @@
             this.events={};
             this.duration=isNaN(parseInt(config.duration))?600:parseInt(config.duration);
             this.direction=parseInt(config.direction)==0?0:1;
-            this.current = 0;
+            this.current=parseInt(config.start)||0;
             this.loop=!!config.loop;
-           
+            this.mousewheel=!!config.mousewheel;
             this.interval=parseInt(config.interval)||5000;
             this.playing=!!config.autoplay;
-            
+            this.arrowkey=!!config.arrowkey;
             this.pages=children(this.container);
             this.length=this.pages.length;
 
             this.pageData=[];
-	    
-	        this.currentClass=config.currentClass || 'current';
-            this.hash = config.hash;
-            this.prevHash = config.prevHash || '#!/page-';
-            this.preload = config.preload || 'near';
-            this.prevIndex;
 
-            var pathIndex = parseInt(ROOT.location.hash.replace(this.prevHash, ''));
-            if(this.hash)this.current= (pathIndex > this.length ? this.length : pathIndex)  || parseInt(config.start);
-            addListener(this.container,STARTEVENT+" click",handler);
-            addListener(document,MOVEEVENT,handler);
+            addListener(this.container,STARTEVENT+" click"+(this.mousewheel?" mousewheel DOMMouseScroll":""),handler);
+            addListener(document,MOVEEVENT+(this.arrowkey?" keydown":""),handler);
 
             each(this.pages,function(page){
                 self.pageData.push({
@@ -332,9 +496,6 @@
 
             this.setEase(config.ease);
             this.setTransition(config.transition);
-	        if(this.hash)this.bindHashChange();
-            //预加载图片的方式
-            if(this.preload)this.loadImages(this.preload);
         },
         initStyle:function(elem){
             var style=elem.style,
@@ -378,11 +539,6 @@
         fire:function(ev,percent,tpageIndex){
             var self=this,
                 args=[].slice.call(arguments,1);
-
-	    if(ev=='after'){
-                this.pages[this.current].className = this.pages[this.current].className +' ' +this.currentClass;
-            }
-            
             each(this.events[ev]||[],function(func){
                 if(isFunction(func)){
                     func.apply(self,args);
@@ -489,38 +645,6 @@
             var pdata=this.pageData[index==null?this.current:index];
             return pdata.percent||0;
         },
-	    bindHashChange: function() {
-            var self = this;
-    	    if( ('onhashchange' in ROOT) && ((typeof document.documentMode==='undefined') || document.documentMode==8)) {
-    		    ROOT.onhashchange = hashChangeFire;  
-        	} else {
-                //安卓4.0部分不支持onhashchange
-        	    setInterval(function() {
-        	        var ischanged = isHashChanged(); 
-        	        if(ischanged) {
-        	            hashChangeFire();
-        	        }
-        	    }, 30);
-        	}
-
-            function hashChangeFire(){
-                var page = ROOT.location.hash.replace(self.prevHash, '');
-                //处理用户可能再次自定义hash的情况
-                if (parseInt(page).toString()==page){
-                    self.slide(page);
-                }
-            }
-
-        },
-        getHash: function() {
-            return ROOT.location.hash;
-        },
-        setHash: function(hash, title) {
-            ROOT.location.hash = hash;
-            if (title) {
-                document.title = title;
-            }
-        },
         handleEvent:function(oldEvent){
             var ev=filterEvent(oldEvent);
 
@@ -552,7 +676,6 @@
                             this._offset=offset;
                             ev.preventDefault();
                         }
- 			this.prevIndex = this.current;
                     }
                     break;
 
@@ -602,14 +725,7 @@
                         }
 
                         if(percent){
-                            if(!this.hash){
-                                    this.slide(index);
-                                }else if ((this.prevIndex == index) || (index<0) || (index > this.length - 1)) {
-                                    this.slide(index);
-                                }else{
-                                    var _Max = (this.current > index) ? -1 : 1;
-                                    this.setHash(this.prevHash + index, this.pages[this.current + _Max].dataset.title);
-                                }
+                            this.slide(index);
                         }
                     }
                     break;
@@ -620,7 +736,39 @@
                     }
                     break;
 
-        
+                case 'mousewheel':
+                case 'dommousescroll':
+                    ev.preventDefault();
+                    if(!this.timer && !this.drag && +new Date-this.latestTime>Math.max(1000-this.duration,0)){
+                        var wd=ev.wheelDelta||-ev.detail;
+                        this[wd>0?'prev':'next']();
+                    }
+                    break;
+
+                case 'keydown':
+                    var nn=ev.target.nodeName.toLowerCase();
+                    if(!this.timer && !this.drag && nn!='input' && nn!='textarea'){
+                        switch(ev.keyCode||ev.which){
+                            case 33:
+                            case 37:
+                            case 38:
+                                this.prev();
+                                break;
+                            case 32:
+                            case 34:
+                            case 39:
+                            case 40:
+                                this.next();
+                                break;
+                            case 35:
+                                this.slide(this.length-1);
+                                break;
+                            case 36:
+                                this.slide(0);
+                                break;
+                        }
+                    }
+                    break;
             }
         },
         destroy:function(){
@@ -675,72 +823,6 @@
             }
 
             return this;
-        },
-	    loadImages: function (type) {
-            //type =  'current' || 'near' || 'all'
-            //TODO:预加载这块目前的实现方式感觉有点挫 有待改进
-            var self = this;
-            function load($elems,fireEvent){
-                var i = 0;
-                if ($elems.length==0){
-                    self.fire(fireEvent)
-                    return;
-                }
-                $.each($elems,function(index,item){
-                    var me = this,
-                        img = new Image();
-                    img.src =this.getAttribute('data-src');
-                    function resolve(){
-                        i++;
-                        if (i>=$elems.length)self.fire(fireEvent)
-                        img = null;
-                    }
-                    img.onload = function() {
-                        (me.tagName == 'IMG') ? (me.src = img.src) : (me.style.backgroundImage = 'url('+img.src+')');
-                        me.removeAttribute('data-src');
-                        resolve();
-                    };
-                    img.onerror = function() {
-                        if(me.tagName == 'IMG') me.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-                        me.removeAttribute('data-src');
-                        resolve();
-                    }
-
-                })
-
-            }
-
-            function afterFuc(){
-                var $page = $(self.pages[self.current]);
-                var $elems = $page.find('*[data-src]');
-                if ($page.data('src')) $elems = $.extend($elems,$page);
-                load($elems,'currentImagesDone');
-            }
-
-            function nearFuc(){
-                afterFuc();
-                var $prev = $(self.pages[self.current-1]),
-                    $next = $(self.pages[self.current+1]),
-                    $elems = $prev.find('*[data-src]').concat($next.find('*[data-src]'));
-                if ($prev.data('src')) $elems = $elems.concat($prev);
-                if ($next.data('src')) $elems = $elems.concat($next);
-                load($elems,'nearImagesDone');
-            }
-
-            switch(type){
-                case 'current':
-                    self.on('after',afterFuc);
-                    afterFuc();
-                    break;
-                case 'near':
-                    self.on('after',nearFuc);
-                    nearFuc();
-                    break;
-                case 'all':
-                    load($(this.container).find('*[data-src]'),'allImagesDone')
-                    break;
-            }
-
         }
     }
     
@@ -748,7 +830,7 @@
         struct['add'+name]=struct.prototype['add'+name];
     });
 
-    ROOT.duangPage=struct;
+    ROOT.pageSwitch=struct;
 	
 })(window, function(wrap,config){
     if(!(this instanceof arguments.callee)){
