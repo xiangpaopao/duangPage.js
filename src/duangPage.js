@@ -1,29 +1,30 @@
 /*
- * duangPage.js 1.0.0
+ * duangPage.js 1.1.0
  * @author xiangpaopao
  * @github https://github.com/xiangpaopao/duangPage.js
  * 参考了 https://github.com/qiqiboy/pageSwitch
  */
-;(function(w, struct, undefined){
+;(function(ROOT, struct, undefined){
     "use strict";
+    
     var lastTime=0,
-        nextFrame=w.requestAnimationFrame            ||
-                w.webkitRequestAnimationFrame        ||
-                w.mozRequestAnimationFrame           ||
-                w.msRequestAnimationFrame,
-        cancelFrame=w.cancelAnimationFrame           ||
-                w.webkitCancelAnimationFrame         ||
-                w.webkitCancelRequestAnimationFrame  ||
-                w.mozCancelRequestAnimationFrame     ||
-                w.msCancelRequestAnimationFrame,
+        nextFrame=ROOT.requestAnimationFrame            ||
+                ROOT.webkitRequestAnimationFrame        ||
+                ROOT.mozRequestAnimationFrame           ||
+                ROOT.msRequestAnimationFrame,
+        cancelFrame=ROOT.cancelAnimationFrame           ||
+                ROOT.webkitCancelAnimationFrame         ||
+                ROOT.webkitCancelRequestAnimationFrame  ||
+                ROOT.mozCancelRequestAnimationFrame     ||
+                ROOT.msCancelRequestAnimationFrame,
         isTouch=("createTouch" in document) || ('ontouchstart' in window),
-        EVENT='PointerEvent' in w ?
+        EVENT='PointerEvent' in ROOT ?
             "pointerdown pointermove pointerup pointercancel" :
             isTouch ? "touchstart touchmove touchend touchcancel" :
             "mousedown mousemove mouseup",
         STARTEVENT=EVENT.split(" ")[0],
         MOVEEVENT=EVENT.split(" ").slice(1).join(" "),
-        divstyle=document.documentElement.style,
+        divstyle=document.createElement('div').style,
         camelCase=function(str){
             return (str+'').replace(/^-ms-/, 'ms-').replace(/-([a-z]|[0-9])/ig, function(all, letter){
                 return (letter+'').toUpperCase();
@@ -44,128 +45,208 @@
                 _prop=camelCase(cssVendor+prop);
             return (prop in divstyle) && prop || (_prop in divstyle) && _prop || '';
         },
+        isFunction=function(func){
+            return type(func)=='function';
+        },
         opacity=cssTest('opacity'),
         transform=cssTest('transform'),
+        transformStyle=cssTest('transform-style'),
         perspective=cssTest('perspective'),
         backfaceVisibility=cssTest('backface-visibility'),
+        preserve3d=transformStyle&&function(){
+            divstyle[transformStyle]='preserve-3d';
+            return divstyle[transformStyle]=='preserve-3d';
+        }(),
         toString=Object.prototype.toString,
         class2type={},
         EASE={
             linear:function(t,b,c,d){ return c*t/d + b; },
-            ease:function(t,b,c,d){ return -c * ((t=t/d-1)*t*t*t - 1) + b; }
+            ease:function(t,b,c,d){ return -c * ((t=t/d-1)*t*t*t - 1) + b; },
+            'ease-in':function(t,b,c,d){ return c*(t/=d)*t*t + b; },
+            'ease-out':function(t,b,c,d){ return c*((t=t/d-1)*t*t + 1) + b; },
+            'ease-in-out':function(t,b,c,d){ if ((t/=d/2) < 1) return c/2*t*t*t + b; return c/2*((t-=2)*t*t + 2) + b; },
+            bounce:function(t,b,c,d){ if ((t/=d) < (1/2.75)) { return c*(7.5625*t*t) + b; } else if (t < (2/2.75)) { return c*(7.5625*(t-=(1.5/2.75))*t + .75) + b; } else if (t < (2.5/2.75)) { return c*(7.5625*(t-=(2.25/2.75))*t + .9375) + b; } else { return c*(7.5625*(t-=(2.625/2.75))*t + .984375) + b; } }
         },
         TRANSITION={
             /* 更改切换效果
-             * @param Float percent 过度百分比
-             * @param int tpageIndex 上一个页面次序。注意，该值可能非法，所以需要测试是否存在该页面
+             * @param Element cpage 当前页面
+             * @param Float cp      当前页面过度百分比
+             * @param Element tpage 前序页面
+             * @param Float tp      前序页面过度百分比
              */
-            fade:function(percent,tpageIndex){
-                var cpage=this.pages[this.current],
-                    tpage=this.pages[tpageIndex];
+            fade:function(cpage,cp,tpage,tp){
                 if(opacity){
-                    cpage.style.opacity=1-Math.abs(percent);
+                    cpage.style.opacity=Math.abs(tp);
                     if(tpage){
-                        tpage.style.opacity=Math.abs(percent);
+                        tpage.style.opacity=Math.abs(cp);
                     }
                 }else{
-                    cpage.style.filter='alpha(opacity='+(1-Math.abs(percent))*100+')';
+                    cpage.style.filter='alpha(opacity='+(Math.abs(tp))*100+')';
                     if(tpage){
-                        tpage.style.filter='alpha(opacity='+Math.abs(percent)*100+')';
+                        tpage.style.filter='alpha(opacity='+Math.abs(cp)*100+')';
                     }
                 }
             }
         }
 
-    $.each("Boolean Number String Function Array Date RegExp Object Error".split(" "),function(index, name){
+    each("Boolean Number String Function Array Date RegExp Object Error".split(" "),function(name){
         class2type["[object "+name+"]"]=name.toLowerCase();
     });
 
-    $.each("X Y ".split(" "),function(index, name){
-        var XY={X:'left',Y:'top'};
-
-        TRANSITION['scroll'+name]=function(percent,tpageIndex){
-            var cpage=this.pages[this.current],
-                tpage=this.pages[tpageIndex],
-                dir=this.direction,
-                fire3D=perspective?' translateZ(0)':'',
-                prop=name||['X','Y'][dir];
-            if(transform){
-                cpage.style[transform]='translate'+prop+'('+percent*100+'%)'+fire3D;
-                if(tpage){
-                    tpage.style[transform]='translate'+prop+'('+tpage.percent*100+'%)'+fire3D;
-                }
-            }else{
-                prop=XY[prop];
-                cpage.style[prop]=percent*100+'%';
-                if(tpage){
-                    tpage.style[prop]=tpage.percent*100+'%';
-                }
+    each("X Y ".split(" "),function(name){
+        var XY={X:'left',Y:'top'},
+            fire3D=perspective?' translateZ(0)':'';
+            
+        TRANSITION['scroll'+name]=function(cpage,cp,tpage,tp){
+            var prop=name||['X','Y'][this.direction];
+            transform?cpage.style[transform]='translate'+prop+'('+cp*100+'%)'+fire3D:cpage.style[XY[prop]]=cp*100+'%';
+            if(tpage){
+                transform?tpage.style[transform]='translate'+prop+'('+tp*100+'%)'+fire3D:tpage.style[XY[prop]]=tp*100+'%';
             }
         }
 
-        TRANSITION['slide'+name]=function(percent,tpageIndex){
-            var cpage=this.pages[this.current],
-                tpage=this.pages[tpageIndex],
-                dir=this.direction,
-                fire3D=perspective?' translateZ(0)':'',
-                prop=name||['X','Y'][dir];
+        TRANSITION['scroll3d'+name]=function(cpage,cp,tpage,tp){
+            var prop=name||['X','Y'][this.direction],
+                fix=cp<0?-1:1,
+                abscp=Math.abs(cp),
+                deg;
+            if(perspective){
+                if(abscp<.05){
+                    deg=abscp*1200;
+                    cp=0;tp=fix*-1;
+                }else if(abscp<.95){
+                    deg=60;
+                    cp=(cp-.05*fix)/.9;
+                    tp=(tp+.05*fix)/.9;
+                }else{
+                    deg=(1-abscp)*1200;
+                    cp=fix;tp=0;
+                }
+                cpage.parentNode.style[transform]='perspective(1000px) rotateX('+deg+'deg)';
+                cpage.style[transform]='translate'+prop+'('+cp*100+'%)';
+                if(tpage){
+                    tpage.style[transform]='translate'+prop+'('+tp*100+'%)';
+                }
+            }else TRANSITION['scroll'+name].apply(this,arguments);
+        }
+
+        TRANSITION['slide'+name]=function(cpage,cp,tpage,tp){
+            var prop=name||['X','Y'][this.direction];
             if(transform){
-                if(percent<0){
-                    cpage.style[transform]='translate'+prop+'('+percent*100+'%)'+fire3D;
+                if(cp<0){
+                    cpage.style[transform]='translate'+prop+'('+cp*100+'%)'+fire3D;
                     cpage.style.zIndex=1;
                     if(tpage){
-                        tpage.style[transform]='scale('+((1-tpage.percent)*.2+.8)+')'+fire3D;
+                        tpage.style[transform]='scale('+(-cp*.2+.8)+')'+fire3D;
                         tpage.style.zIndex=0;
                     }
                 }else{
                     if(tpage){
-                        tpage.style[transform]='translate'+prop+'('+tpage.percent*100+'%)'+fire3D;
+                        tpage.style[transform]='translate'+prop+'('+tp*100+'%)'+fire3D;
                         tpage.style.zIndex=1;
                     }
-                    cpage.style[transform]='scale('+((1-percent)*.2+.8)+')'+fire3D;
+                    cpage.style[transform]='scale('+((1-cp)*.2+.8)+')'+fire3D;
                     cpage.style.zIndex=0;
                 }
-            }else TRANSITION['scroll'+name].apply(this,arguments);
+            }else TRANSITION['slideCover'+name].apply(this,arguments);
         }
 
-        TRANSITION['rotate'+name]=function(percent,tpageIndex){
-            var cpage=this.pages[this.current],
-                tpage=this.pages[tpageIndex],
-                dir=this.direction,
-                fire3D=perspective?' translateZ(0)':'',
-                fix=percent>0?dir?-1:1:dir?1:-1,
-                prop=name||['X','Y'][1-dir];
-            if(perspective){
-                cpage.style[backfaceVisibility]='hidden';
-                cpage.style[transform]='perspective(1000px) rotate'+prop+'('+Math.abs(percent)*180*fix+'deg)'+fire3D;
-                if(tpage){
-                    tpage.style[backfaceVisibility]='hidden';
-                    tpage.style[transform]='perspective(1000px) rotate'+prop+'('+Math.abs(tpage.percent)*180*-fix+'deg)'+fire3D;
-                }
-            }else TRANSITION['slide'+name].apply(this,arguments);
-        }
-
-        TRANSITION['scale'+name]=function(percent,tpageIndex){
-            var cpage=this.pages[this.current],
-                tpage=this.pages[tpageIndex],
-                fire3D=perspective?' translateZ(0)':'',
-                prop=name;
-            if(transform){
-                cpage.style[transform]='scale'+prop+'('+(1-Math.abs(percent))+')';+fire3D
-                cpage.style.zIndex=percent<0?1:0;
-                if(tpage){
-                    tpage.style[transform]='scale'+prop+'('+Math.abs(percent)+')'+fire3D;
-                    tpage.style.zIndex=percent<0?0:1;
-                }
-            }else TRANSITION['scroll'+name].apply(this,arguments);
-        }
 
     });
 
-    function filterEvent(oldEvent){
-        var ev={};
+    function type(obj){
+        if(obj==null){
+            return obj+"";
+        }
+        
+        return typeof obj=='object'||typeof obj=='function' ? class2type[toString.call(obj)]||"object" :
+            typeof obj;
+    }
+	
+    function isArrayLike(elem){
+        var tp=type(elem);
+        return !!elem && tp!='function' && tp!='string' && (elem.length===0 || elem.length && (elem.nodeType==1 || (elem.length-1) in elem));
+    }
+    
+    function each(arr, iterate){
+        if(isArrayLike(arr)){
+            if(type(arr.forEach)=='function'){
+                return arr.forEach(iterate);
+            }
+            var i=0,len=arr.length,item;
+            for(;i<len;i++){
+                item=arr[i];
+                if(type(item)!='undefined'){
+                    iterate(item,i,arr);
+                }
+            }
+        }else{
+            var key;
+            for(key in arr){
+                iterate(key,arr[key],arr);
+            }
+        }
+    }
 
-        $.each("clientX clientY type".split(" "),function(index,prop){
+    function children(elem){
+        var ret=[];
+        each(elem.children||elem.childNodes,function(elem){
+            if(elem.nodeType==1){
+                ret.push(elem);
+            }
+        });
+        return ret;
+    }
+
+    function addListener(elem,evstr,handler){
+        if(type(evstr)=='object'){
+            return each(evstr,function(evstr,handler){
+                addListener(elem,evstr,handler);
+            });
+        }
+        each(evstr.split(" "),function(ev){
+            if(elem.addEventListener){
+                elem.addEventListener(ev,handler,false);
+            }else if(elem.attachEvent){
+                elem.attachEvent('on'+ev,handler);
+            }else elem['on'+ev]=handler;
+        });
+    }
+
+    function offListener(elem,evstr,handler){
+        if(type(evstr)=='object'){
+            return each(evstr,function(evstr,handler){
+                offListener(elem,evstr,handler);
+            });
+        }
+        each(evstr.split(" "),function(ev){
+            if(elem.removeEventListener){
+                elem.removeEventListener(ev,handler,false);
+            }else if(elem.detachEvent){
+                elem.detachEvent('on'+ev,handler);
+            }else elem['on'+ev]=null;
+        });
+    }
+
+    function removeRange(){
+        var range;
+        if(ROOT.getSelection){
+            range=getSelection();
+            if('empty' in range)range.empty();
+            else if('removeAllRanges' in range)range.removeAllRanges();
+        }else{
+            range=document.selection.createRange();
+            range.moveEnd("character",-range.text.length);
+            range.select();
+        }
+    }
+
+    function filterEvent(oldEvent){
+        var ev={},
+            which=oldEvent.which,
+            button=oldEvent.button;
+
+        each("clientX clientY type wheelDelta detail which keyCode".split(" "),function(prop){
             ev[prop]=oldEvent[prop];
         });
 
@@ -185,79 +266,101 @@
             ev.clientX=oldEvent.touches.item(0).clientX;
             ev.clientY=oldEvent.touches.item(0).clientY;
         }
-
+        
+        ev.button=which<4?which-1:button&4&&1||button&2; // left:0 middle:1 right:2
         ev.touchNum=oldEvent.touches&&oldEvent.touches.length||0;
 
         return ev;
     }
-
-
+    
     struct.prototype={
         constructor:struct,
         latestTime:0,
         init:function(config){
             var self=this,
-                handler=function(ev){
+                handler=this.handler=function(ev){
                     !self.frozen && self.handleEvent(ev);
                 }
+
             this.events={};
             this.duration=isNaN(parseInt(config.duration))?600:parseInt(config.duration);
             this.direction=parseInt(config.direction)==0?0:1;
+            this.current=parseInt(config.start)||0;
             this.loop=!!config.loop;
+            this.mousewheel=!!config.mousewheel;
             this.interval=parseInt(config.interval)||5000;
             this.playing=!!config.autoplay;
-            this.pages=$(this.container).children();
+            this.arrowkey=!!config.arrowkey;
+            this.pages=children(this.container);
             this.length=this.pages.length;
-            this.currentClass=config.currentClass || 'current';
+
+            this.pageData=[];
+	    
+	    this.currentClass=config.currentClass || 'current';
             this.hash = config.hash;
             this.prevHash = config.prevHash || '#!/page-';
             this.preload = config.preload || 'near';
-            this.current = 0;
-            this.prevIndex;
 
-            var pathIndex = parseInt(w.location.hash.replace(this.prevHash, ''));
-            if(this.hash)this.current= (pathIndex > this.length ? this.length : pathIndex)  || parseInt(config.start);
+            addListener(this.container,STARTEVENT+" click",handler);
+            addListener(document,MOVEEVENT,handler);
 
-            $(this.container).on(STARTEVENT+" click",handler)
-            $(document).on(MOVEEVENT,handler)
+            each(this.pages,function(page){
+                self.pageData.push({
+                    percent:0,
+                    cssText:page.style.cssText||''
+                });
+                self.initStyle(page);
+            });
+            this.pages[this.current].style.display='block';
+
+            this.on({
+                before:function(){clearTimeout(self.playTimer)},
+                dragStart:function(){clearTimeout(self.playTimer)},
+                dragMove:function(){removeRange();},
+                after:function(){
+                    if(self.playing){
+                        self.playTimer=setTimeout(function(){
+                            self.next();
+                        },self.interval);
+                    }
+                },
+                update:null
+            }).fire('after');
 
             this.setEase(config.ease);
             this.setTransition(config.transition);
-
-            $.each(this.pages,function(index,page){
-                var style=page.style;
-                $.each("position:absolute;top:0;left:0;width:100%;height:100%;display:none".split(";"),function(index,css){
-                    var ret=css.split(":");
-                    style[ret[0]]=ret[1];
-                });
-                page.percent=0;
-            });
-
-            this.pages[this.current].style.display='block';
-            this.fire('after');
-            if(this.hash)this.bindHashChange();
+	    if(this.hash)this.bindHashChange();
             //预加载图片的方式
             if(this.preload)this.loadImages(this.preload);
         },
+        initStyle:function(elem){
+            var style=elem.style,
+                ret;
+            each("position:absolute;top:0;left:0;width:100%;height:100%;display:none".split(";"),function(css){
+                ret=css.split(":");
+                style[ret[0]]=ret[1];
+            });
+            return elem;
+        },
         setEase:function(ease){
-            this.ease=$.isFunction(ease)?ease:EASE[ease]||EASE.ease;
+            this.ease=isFunction(ease)?ease:EASE[ease]||EASE.ease;
             return this;
         },
         addEase:function(name,func){
-            $.isFunction(func) && (EASE[name]=func);
+            isFunction(func) && (EASE[name]=func);
             return this;
         },
         setTransition:function(transition){
-            this.transite=$.isFunction(transition)?transition:TRANSITION[transition]||TRANSITION.slide;
+            this.events.update.splice(0,1,isFunction(transition)?transition:TRANSITION[transition]||TRANSITION.slide);
             return this;
         },
         addTransition:function(name,func){
-            $.isFunction(func) && (TRANSITION[name]=func);
+            isFunction(func) && (TRANSITION[name]=func);
             return this;
         },
         on:function(ev,callback){
             var self=this;
-            if($.type(ev)=='object'){
+            if(type(ev)=='object'){
                 each(ev,function(ev,callback){
                     self.on(ev,callback);
                 });
@@ -269,34 +372,23 @@
             }
             return this;
         },
-        /*
-        * 为什么此处after后percnet会变成当前索引
-        * */
         fire:function(ev,percent,tpageIndex){
-
             var self=this,
                 args=[].slice.call(arguments,1);
-            if(ev=='update'){
-                this.pages[this.current].percent=percent;
-                if(this.pages[tpageIndex]){
-                    this.pages[tpageIndex].percent=percent>0?percent-1:1+percent;
-                }
-                this.transite.apply(this,args);
-            }
 
-            if(ev=='after'){
+	    if(ev=='after'){
                 this.pages[this.current].className = this.pages[this.current].className +' ' +this.currentClass;
             }
-
-            $.each(this.events[ev]||[],function(index,func){
-                if($.isFunction(func)){
+            
+            each(this.events[ev]||[],function(func){
+                if(isFunction(func)){
                     func.apply(self,args);
                 }
             });
             return this;
         },
         freeze:function(able){
-            this.frozen=$.type(able)=='undefined'?true:!!able;
+            this.frozen=type(able)=='undefined'?true:!!able;
             return this;
         },
         slide:function(index){
@@ -307,45 +399,48 @@
                 ease=this.ease,
                 current=this.current,
                 fixIndex=Math.min(this.length-1,Math.max(0,this.fixIndex(index))),
-                cpage,tpage,tpageIndex,percent;
+                cpage=this.pages[current],
+                percent=this.getPercent(),
+                tIndex=this.fixIndex(fixIndex==current?current+(percent>0?-1:1):fixIndex),
+                tpage=this.pages[tIndex],
+                target=index>current?-1:1,
+                _tpage=cpage;
+            
+            cancelFrame(this.timer);
 
-            cpage=this.pages[fixIndex];
-            tpage=this.pages[tpageIndex=this.fixIndex(fixIndex==current?fixIndex+(cpage.percent>0?-1:1):current)];
-
-            $.each(this.pages,function(index,page){
-                if(index!=fixIndex&&index!=tpageIndex){
-                    page.style.display='none';
-                }
-            });
-
-            if(cpage.style.display=='none'){
-                cpage.style.display='block';
-                percent=index>current?1:-1;
-            }else{
-                percent=cpage.percent;
+            if(fixIndex==current){
+                target=0;
+                _tpage=tpage;
+            }else if(tpage.style.display=='none'){
+                percent=0;
             }
-            duration*=Math.abs(percent);
+
+            this.fixBlock(current,tIndex);
             this.fire('before',current,fixIndex);
             this.current=fixIndex;
-            cancelFrame(this.timer);
-            this.latestTime=stime;
+
+            duration*=Math.abs(target-percent);
+
+            this.latestTime=stime+duration;
+
             ani();
 
             function ani(){
                 var offset=Math.min(duration,+new Date-stime),
                     s=duration?ease(offset,0,1,duration):1,
-                    cp=percent*(1-s);
-                    self.fire('update',cp,tpageIndex);
+                    cp=(target-percent)*s+percent;
+                self.fixUpdate(cp,current,tIndex);
                 if(offset==duration){
-                    if(tpage){
-                        tpage.style.display='none';
+                    if(_tpage){
+                        _tpage.style.display='none';
                     }
-                    self.fire('after',fixIndex,current);
                     delete self.timer;
+                    self.fire('after',fixIndex,current);
                 }else{
                     self.timer=nextFrame(ani);
                 }
             }
+
             return this;
         },
         prev:function(){
@@ -364,12 +459,37 @@
             return this;
         },
         fixIndex:function(index){
-            return this.length>1&&this.loop?(this.length+index)%this.length:index;
+            return this.length>1&&(this.loop||this.playing)?(this.length+index%this.length)%this.length:index;
         },
-        bindHashChange: function() {
+        fixBlock:function(cIndex,tIndex){
+            each(this.pages,function(page,index){
+                if(cIndex!=index && tIndex!=index){
+                    page.style.display='none';
+                }else{
+                    page.style.display='block';
+                }
+            });
+            return this;
+        },
+        fixUpdate:function(cPer,cIndex,tIndex){
+            var pageData=this.pageData,
+                cpage=this.pages[cIndex],
+                tpage=this.pages[tIndex],
+                tPer;
+            pageData[cIndex].percent=cPer;
+            if(tpage){
+                tPer=pageData[tIndex].percent=cPer>0?cPer-1:1+cPer;
+            }
+            return this.fire('update',cpage,cPer,tpage,tPer);
+        },
+        getPercent:function(index){
+            var pdata=this.pageData[index==null?this.current:index];
+            return pdata.percent||0;
+        },
+	bindHashChange: function() {
             var self = this;
-            w.addEventListener('hashchange', function() {
-                var page = w.location.hash.replace(self.prevHash, '');
+            ROOT.addEventListener('hashchange', function() {
+                var page = ROOT.location.hash.replace(self.prevHash, '');
                 //处理用户可能再次自定义hash的情况
                 if (parseInt(page).toString()==page){
                     self.slide(page);
@@ -378,10 +498,10 @@
 
         },
         getHash: function() {
-            return w.location.hash;
+            return ROOT.location.hash;
         },
         setHash: function(hash, title) {
-            w.location.hash = hash;
+            ROOT.location.hash = hash;
             if (title) {
                 document.title = title;
             }
@@ -394,75 +514,80 @@
                 case 'touchmove':
                 case 'pointermove':
                     if(this.rect&&ev.touchNum<2){
-                        var rect=[ev.clientX,ev.clientY],
+                        var cIndex=this.current,
                             dir=this.direction,
-                            offset=rect[dir]-this.rect[dir],
-                            cpage=this.pages[this.current],
+                            rect=[ev.clientX,ev.clientY],
+                            _rect=this.rect,
+                            offset=rect[dir]-_rect[dir],
+                            cpage=this.pages[cIndex],
                             total=cpage['offset'+['Width','Height'][dir]],
-                            tpage,tpageIndex,_tpage,percent;
-                        if(this.drag==null && this.rect.toString()!=rect.toString()){
-                            this.drag=Math.abs(offset)>=Math.abs(rect[1-dir]-this.rect[1-dir]);
-                            this.drag && this.fire('dragStart');
+                            tIndex,percent;
+                        if(this.drag==null && _rect.toString()!=rect.toString()){
+                            this.drag=Math.abs(offset)>=Math.abs(rect[1-dir]-_rect[1-dir]);
+                            this.drag && this.fire('dragStart',ev);
                         }
                         if(this.drag){
                             percent=this.percent+(total&&offset/total);
-                            tpage=this.pages[tpageIndex=this.fixIndex(this.current+(percent>0?-1:1))];
-                            _tpage=this.pages[this.fixIndex(this.current+(percent>0?1:-1))];
-                            if(tpage){
-                                tpage.style.display='block';
-                            }else{
-                                percent/=3;
+                            if(!this.pages[tIndex=this.fixIndex(cIndex+(percent>0?-1:1))]){
+                                percent/=Math.abs(offset)/total+2;
                             }
-                            if(_tpage&&_tpage!=tpage){
-                                _tpage.style.display='none';
-                            }
-                            this.fire('update',percent,tpageIndex);
+                            this.fixBlock(cIndex,tIndex);
+                            this.fire('dragMove',ev);
+                            this.fixUpdate(percent,cIndex,tIndex);
                             this._offset=offset;
                             ev.preventDefault();
                         }
-                        this.prevIndex = this.current;
+ 			this.prevIndex = this.current;
                     }
                     break;
 
                 case 'mousedown':
                 case 'touchstart':
                 case 'pointerdown':
+                    var startEv=!ev.button;
                 case 'mouseup':
                 case 'touchend':
                 case 'touchcancel':
                 case 'pointerup':
                 case 'pointercancel':
                     var self=this,
-                        cpage=this.pages[this.current],
                         index=this.current,
-                        recover=this._offset||this.timer,
-                        nn;
-                    if(!this.time||ev.touchNum){
+                        percent=this.getPercent(),
+                        isDrag,offset,tm,nn;
+                    if(!this.time&&startEv||ev.touchNum){
                         nn=ev.target.nodeName.toLowerCase();
-                        cancelFrame(this.timer);
+                        if(this.timer){
+                            cancelFrame(this.timer);
+                            delete this.timer;
+                        }
                         this.rect=[ev.clientX,ev.clientY];
-                        this.percent=this.pages[this.current].percent;
+                        this.percent=percent;
                         this.time=+new Date;
                         if(!isTouch && (nn=='a' || nn=='img')){
                             ev.preventDefault();
                         }
                     }else{
-                        if(this.drag==true){
-                            if(+new Date-this.time<500 && Math.abs(this._offset)>30){
-                                index+=this._offset>0?-1:1;
-                            }else if(Math.abs(cpage.percent)>.5){
-                                index+=cpage.percent>0?-1:1;
-                            }
-                            this.fire('dragEnd');
-                            ev.preventDefault();
-                        }
-                        if(this.time){
-                            $.each("rect drag time timer percnet _offset".split(" "),function(index,prop){
+                        offset=this._offset;
+                        isDrag=this.drag;
+
+                        if(tm=this.time){
+                            each("rect drag time percent _offset".split(" "),function(prop){
                                 delete self[prop];
                             });
-                            if(recover){
-                                //避免出现setHash后 两次触发after事件
-                                if(!this.hash){
+                        }
+
+                        if(isDrag){
+                            if(+new Date-tm<500 && Math.abs(offset)>20){
+                                index+=offset>0?-1:1;
+                            }else if(Math.abs(percent)>.5){
+                                index+=percent>0?-1:1;
+                            }
+                            this.fire('dragEnd',ev);
+                            ev.preventDefault();
+                        }
+
+                        if(percent){
+                            if(!this.hash){
                                     this.slide(index);
                                 }else if ((this.prevIndex == index) || (index<0) || (index > this.length - 1)) {
                                     this.slide(index);
@@ -470,19 +595,73 @@
                                     var _Max = (this.current > index) ? -1 : 1;
                                     this.setHash(this.prevHash + index, this.pages[this.current + _Max].dataset.title);
                                 }
-                            }
                         }
-                        break;
                     }
+                    break;
 
                 case 'click':
                     if(this.timer){
                         ev.preventDefault();
                     }
                     break;
+
+                
             }
         },
-        loadImages: function (type) {
+        destroy:function(){
+            var pageData=this.pageData;
+
+            offListener(this.container,STARTEVENT+" click"+(this.mousewheel?" mousewheel DOMMouseScroll":""),this.handler);
+            offListener(document,MOVEEVENT+(this.arrowkey?" keydown":""),this.handler);
+
+            each(this.pages,function(page,index){
+                page.style.cssText=pageData[index].cssText;
+            });
+            
+            return this.pause();
+        },
+        append:function(elem,index){
+            if(null==index){
+                index=this.pages.length;
+            }
+            this.pageData.splice(index,0,{
+                percent:0,
+                cssText:elem.style.cssText
+            });
+            this.pages.splice(index,0,elem);
+            this.container.appendChild(this.initStyle(elem));
+            
+            this.length=this.pages.length;
+
+            if(index<=this.current){
+                this.current++;
+            }
+
+            return this;
+        },
+        prepend:function(elem){
+            return this.append(elem,0);
+        },
+        insertBefore:function(elem,index){
+            return this.append(elem,index-1);
+        },
+        insertAfter:function(elem,index){
+            return this.append(elem,index+1);
+        },
+        remove:function(index){
+            this.container.removeChild(this.pages[index]);
+            this.pages.splice(index,1);
+            this.pageData.splice(index,1);
+
+            this.length=this.pages.length;
+
+            if(index<=this.current){
+                this.slide(this.current=Math.max(0,this.current-1));
+            }
+
+            return this;
+        },
+	loadImages: function (type) {
             //type =  'current' || 'near' || 'all'
             //TODO:预加载这块目前的实现方式感觉有点挫 有待改进
             var self = this;
@@ -548,14 +727,14 @@
             }
 
         }
-        
     }
     
-    $.each("Ease Transition".split(" "),function(index,name){
+    each("Ease Transition".split(" "),function(name){
         struct['add'+name]=struct.prototype['add'+name];
     });
 
-    w.duangPage=struct;
+    ROOT.duangPage=struct;
+	
 })(window, function(wrap,config){
     if(!(this instanceof arguments.callee)){
         return new arguments.callee(wrap,config);

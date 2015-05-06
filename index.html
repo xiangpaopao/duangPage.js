@@ -48,7 +48,8 @@ h1{text-align:center;font-size:30px;}
 </div>
 <div id="loading"></div>
 <script type="text/javascript" src="src/zepto.min.js"></script>
-<script type="text/javascript" src="src/duangPage.js"></script>
+<script type="text/javascript" src="src/pageSwitch.js"></script>
+
 <script>
 Zepto(function($) {
     var duang = new duangPage('pages', {
@@ -97,6 +98,18 @@ Zepto(function($) {
 
 
 })
+
+// var duang = new pageSwitch('pages', {
+//         duration: 800,
+//         start: 0,
+//         direction: 1,
+//         loop: false,
+//         ease: 'ease',
+//         hash: true,
+//         currentClass: 'cur',
+//         transition: 'slide',
+//         preload:'near' //'current'  'near'  'all'  
+//     });
 
 
 </script>
