@@ -1,5 +1,5 @@
 /*
- * duangPage.js 1.1.2
+ * duangPage.js 1.1.3
  * @author xiangpaopao
  * @github https://github.com/xiangpaopao/duangPage.js
  * 参考了 https://github.com/qiqiboy/pageSwitch
@@ -433,7 +433,9 @@
 				args = [].slice.call(arguments, 1);
 
 			if (ev == 'after') {
-				this.pages[this.current].className = this.pages[this.current].className + ' ' + this.currentClass;
+                //this.pages[this.current].className = this.pages[this.current].className + ' ' + this.currentClass;
+                $('.'+this.currentClass).removeClass(this.currentClass);
+				$(this.pages[this.current]).addClass(this.currentClass);
 			}
 
 			each(this.events[ev] || [], function(func) {
@@ -508,8 +510,17 @@
 		},
 		play: function() {
 			this.playing = true;
-			return this.slide(this.current);
+		 	return this.firePlay();
 		},
+		firePlay:function(){
+	            var self=this;
+	            if(this.playing){
+	                this.playTimer=setTimeout(function(){
+	                    self.slide((self.current+1)%(self.loop?Infinity:self.length));
+	                },this.interval);
+	            }
+	            return this;
+	        },
 		pause: function() {
 			this.playing = false;
 			clearTimeout(this.playTimer);
