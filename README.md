@@ -10,7 +10,7 @@
     	<h1>标题</h1>
     	<img data-src="img.jpg" alt="">
     </div>
-    <div class="page" data-title="苹果婊"></div>
+    <div class="page" data-title="苹果表"></div>
     <div class="page" data-src="img.jpg"></div>
     ...
 </div>
